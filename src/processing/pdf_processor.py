@@ -3,8 +3,12 @@ import sqlite3
 from pathlib import Path
 
 from docling.datamodel.base_models import InputFormat
-from docling.document_converter import DocumentConverter, PdfPipelineOptions
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling.datamodel.pipeline_options import PdfPipelineOptions
 from pypdf import PdfReader, PdfWriter
+
+from langchain_text_splitters import MarkdownHeaderTextSplitter
+
 
 # Define project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -25,9 +29,9 @@ G99_PAGES = (
     + list(range(318, 320))
 )
 
-UKPN_PAGES = list(range(8, 10)) + [11] + list(range(11, 14)) + [14] + [17]
+UKPN_PAGES = list(range(8, 10)) + list(range(11, 15)) + [17]
 
-SPEN_PAGES = list(range(5, 7)) + [10] + list(range(11, 14)) + list(range(14, 16))
+SPEN_PAGES = list(range(5, 7)) + list(range(10, 16))
 
 SLICING_CONFIG = {
     "G99_Issue_2.pdf": G99_PAGES,
@@ -92,9 +96,11 @@ def process_pdfs():
     cursor = conn.cursor()
 
     pipeline_options = PdfPipelineOptions()
-    pipeline_options.do_ocr = False
-    pipeline_options.do_table_structure = True
-    converter = DocumentConverter(format_options={InputFormat.PDF: pipeline_options})
+    pipeline_options.do_ocr = True  # Enable OCR for scanned/flowchart pages
+    pipeline_options.do_table_structure = True  # Enable table/flowchart extraction
+
+    pdf_format_option = PdfFormatOption(pipeline_options=pipeline_options)
+    converter = DocumentConverter(format_options={InputFormat.PDF: pdf_format_option})
 
     for pdf_name, target_pages in SLICING_CONFIG.items():
         print(f"--- Slicing {pdf_name} ---")
@@ -106,8 +112,25 @@ def process_pdfs():
         sliced_path, mapped_pages = slice_info
         print(f"Processing slice with Docling: {sliced_path}")
 
+
         result = converter.convert(sliced_path)
         doc = result.document
+
+        # Helper: Use LangChain's MarkdownHeaderTextSplitter
+        def split_markdown_by_heading(md_text):
+            splitter = MarkdownHeaderTextSplitter(
+                headers_to_split_on=[
+                    ("#", "h1"),
+                    ("##", "h2"),
+                    ("###", "h3"),
+                    ("####", "h4"),
+                    ("#####", "h5"),
+                    ("######", "h6"),
+                ]
+            )
+            docs = splitter.split_text(md_text)
+            # Each doc is a Document with .page_content
+            return [d.page_content.strip() for d in docs if d.page_content.strip()]
 
         # In a sliced PDF, Docling sees page 1, 2, 3...
         # We need to map these back to the original page numbers
@@ -118,20 +141,28 @@ def process_pdfs():
                 # Map back to original
                 original_page_no = mapped_pages[sliced_page_no - 1]
 
-                content = (
-                    element.export_to_markdown()
-                    if hasattr(element, "export_to_markdown")
-                    else str(element)
-                )
+                # Try to get markdown content
+                try:
+                    if hasattr(element, "export_to_markdown"):
+                        content = element.export_to_markdown(doc)
+                    elif hasattr(element, "text"):
+                        content = element.text
+                    else:
+                        content = str(element)
+                except Exception:
+                    content = str(element)
 
-                insert_query = "\n".join(
-                    [
-                        "INSERT INTO document_chunks (source_file, page_number, content)",
-                        "VALUES (?, ?, ?)",
-                    ]
-                )
-
-                cursor.execute(insert_query, (pdf_name, original_page_no, content))
+                # Split by heading if markdown, else treat as one chunk
+                if content and content.strip():
+                    md_chunks = split_markdown_by_heading(content)
+                    for md_chunk in md_chunks:
+                        if not md_chunk.strip():
+                            continue
+                        insert_query = "\n".join([
+                            "INSERT INTO document_chunks (source_file, page_number, content)",
+                            "VALUES (?, ?, ?)",
+                        ])
+                        cursor.execute(insert_query, (pdf_name, original_page_no, md_chunk))
 
         conn.commit()
         print(f"Finished processing and mapping {pdf_name}")
@@ -140,19 +171,5 @@ def process_pdfs():
 
 
 if __name__ == "__main__":
-    # Ensure we are running from the project root
-    project_root = Path(__file__).parent.parent.parent
-    os.chdir(project_root)
 
-    print("--- Testing PDF Slicing ---")
-    for pdf_name, target_pages in SLICING_CONFIG.items():
-        result = slice_pdf(pdf_name, target_pages)
-        if result:
-            output_path, actual_pages = result
-            print(
-                f"✅ Created slice for {pdf_name}: {output_path} ({len(actual_pages)} pages)"
-            )
-        else:
-            print(f"❌ Failed to create slice for {pdf_name}")
-
-    # process_pdfs()  # Commented out for testing slicing only
+    process_pdfs()  

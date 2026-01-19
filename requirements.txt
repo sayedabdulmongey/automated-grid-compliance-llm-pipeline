@@ -1,8 +1,24 @@
-apypdf
+pypdf
 google-generativeai
 docling
 pyyaml
 python-dotenv
 tqdm
+
+langchain-text-splitters
+
+pandas
+matplotlib
+seaborn
+
+wandb
+
+# Optional: Serving
+# fastapi
+# uvicorn
+# unsloth  # Install separately: pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+
+# Chunking/Markdown splitting
+# vllm
 
 

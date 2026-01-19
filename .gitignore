@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+*.log
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints/
+
+# VSCode
+.vscode/
+
+# Environment
+.env
+.env.*
+*.env
+*.venv/
+.venv/
+venv/
+
+# Data & Models
+/data/raw/
+/data/interim/
+/data/pipeline.db
+/data/training_data.jsonl
+/models/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# Misc
+*.bak
+*.swp
+*.tmp
+
+# Ignore notebook outputs (optional)
+notebooks/*.ipynb
+!notebooks/data_exploration.ipynb
