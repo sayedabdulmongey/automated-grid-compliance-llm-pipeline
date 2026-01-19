@@ -1,0 +1,8 @@
+apypdf
+google-generativeai
+docling
+pyyaml
+python-dotenv
+tqdm
+
+
