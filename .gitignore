@@ -22,12 +22,6 @@ __pycache__/
 .venv/
 venv/
 
-# Data & Models
-/data/raw/
-/data/interim/
-/data/pipeline.db
-/data/training_data.jsonl
-/models/
 
 # System
 .DS_Store

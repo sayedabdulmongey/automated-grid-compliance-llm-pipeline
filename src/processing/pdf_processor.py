@@ -7,8 +7,6 @@ from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.pipeline_options import PdfPipelineOptions
 from pypdf import PdfReader, PdfWriter
 
-from langchain_text_splitters import MarkdownHeaderTextSplitter
-
 
 # Define project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -112,36 +110,21 @@ def process_pdfs():
         sliced_path, mapped_pages = slice_info
         print(f"Processing slice with Docling: {sliced_path}")
 
-
         result = converter.convert(sliced_path)
         doc = result.document
 
-        # Helper: Use LangChain's MarkdownHeaderTextSplitter
-        def split_markdown_by_heading(md_text):
-            splitter = MarkdownHeaderTextSplitter(
-                headers_to_split_on=[
-                    ("#", "h1"),
-                    ("##", "h2"),
-                    ("###", "h3"),
-                    ("####", "h4"),
-                    ("#####", "h5"),
-                    ("######", "h6"),
-                ]
-            )
-            docs = splitter.split_text(md_text)
-            # Each doc is a Document with .page_content
-            return [d.page_content.strip() for d in docs if d.page_content.strip()]
-
-        # In a sliced PDF, Docling sees page 1, 2, 3...
-        # We need to map these back to the original page numbers
+        # Group content by page number
+        pages_content = {}
         for element, _level in doc.iterate_items():
             if element.prov:
                 # Docling page_no is 1-indexed for the sliced file
                 sliced_page_no = element.prov[0].page_no
-                # Map back to original
-                original_page_no = mapped_pages[sliced_page_no - 1]
-
-                # Try to get markdown content
+                
+                # Initialize page content list if not exists
+                if sliced_page_no not in pages_content:
+                    pages_content[sliced_page_no] = []
+                
+                # Get element content as markdown
                 try:
                     if hasattr(element, "export_to_markdown"):
                         content = element.export_to_markdown(doc)
@@ -151,18 +134,30 @@ def process_pdfs():
                         content = str(element)
                 except Exception:
                     content = str(element)
-
-                # Split by heading if markdown, else treat as one chunk
+                
                 if content and content.strip():
-                    md_chunks = split_markdown_by_heading(content)
-                    for md_chunk in md_chunks:
-                        if not md_chunk.strip():
-                            continue
-                        insert_query = "\n".join([
-                            "INSERT INTO document_chunks (source_file, page_number, content)",
-                            "VALUES (?, ?, ?)",
-                        ])
-                        cursor.execute(insert_query, (pdf_name, original_page_no, md_chunk))
+                    pages_content[sliced_page_no].append(content.strip())
+
+        # Remove unwanted lines from content
+        for sliced_page_no in pages_content:
+            pages_content[sliced_page_no] = [
+                line for line in pages_content[sliced_page_no] 
+                if "<!-- 🖼️❌ Image not available. Please use `PdfPipelineOptions(generate_picture_images=True)` -->" not in line
+            ]
+
+        # Now insert one entry per page with all content combined
+        for sliced_page_no, content_list in sorted(pages_content.items()):
+            # Map back to original page number
+            original_page_no = mapped_pages[sliced_page_no - 1]
+            
+            # Combine all content from this page into markdown
+            page_markdown = "\n\n".join(content_list)
+            
+            insert_query = "\n".join([
+                "INSERT INTO document_chunks (source_file, page_number, content)",
+                "VALUES (?, ?, ?)",
+            ])
+            cursor.execute(insert_query, (pdf_name, original_page_no, page_markdown))
 
         conn.commit()
         print(f"Finished processing and mapping {pdf_name}")
@@ -172,4 +167,4 @@ def process_pdfs():
 
 if __name__ == "__main__":
 
-    process_pdfs()  
+    process_pdfs()

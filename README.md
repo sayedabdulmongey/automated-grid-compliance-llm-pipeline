@@ -20,3 +20,9 @@ Data should be placed in `data/raw/` with these exact names:
 - `G99_Issue_2.pdf`
 - `UKPN_EDS_08_5050.pdf`
 - `SPEN_EV_Fleet_Guide.pdf`
+
+
+
+# ADD this two commands in the begining to avoid any errors !! 
+sudo apt-get update
+sudo apt-get install -y tesseract-ocr libgl1
