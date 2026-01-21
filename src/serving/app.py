@@ -103,7 +103,7 @@ def load_model():
             quantization_config=bnb_config,
             device_map="auto",
             trust_remote_code=True,
-            torch_dtype=torch.bfloat16,
+            dtype=torch.bfloat16,
         )
     else:
         # CPU fallback (slower, no quantization)
@@ -111,7 +111,7 @@ def load_model():
             MODEL_ID,
             device_map="cpu",
             trust_remote_code=True,
-            torch_dtype=torch.float32,
+            dtype=torch.float32,
         )
 
     model.eval()
