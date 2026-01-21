@@ -5,7 +5,7 @@
 # Requires NVIDIA GPU with CUDA support
 # =============================================================================
 
-FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04 AS production
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
