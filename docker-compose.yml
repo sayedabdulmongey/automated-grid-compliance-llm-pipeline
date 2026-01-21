@@ -1,0 +1,81 @@
+# =============================================================================
+# Grid Compliance QA API - Docker Compose Configuration
+# =============================================================================
+# Deploy the FastAPI inference server with GPU support
+#
+# Usage:
+#   docker-compose up --build        # Build and start
+#   docker-compose up -d             # Start in background
+#   docker-compose logs -f api       # View logs
+#   docker-compose down              # Stop services
+# =============================================================================
+
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------------------
+  # API Service - FastAPI Inference Server
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: grid-compliance-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_ID=${MODEL_ID:-sayedsalem/qwen2.5-7b-grid-compliance}
+      - BASE_MODEL_ID=${BASE_MODEL_ID:-Qwen/Qwen2.5-7B-Instruct}
+      - MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-256}
+      - HF_TOKEN=${HF_TOKEN:-}
+    volumes:
+      # Cache HuggingFace models to avoid re-downloading
+      - huggingface_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - grid-network
+
+  # ---------------------------------------------------------------------------
+  # Optional: Nginx Reverse Proxy (uncomment if needed)
+  # ---------------------------------------------------------------------------
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: grid-compliance-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #   depends_on:
+  #     - api
+  #   networks:
+  #     - grid-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  huggingface_cache:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  grid-network:
+    driver: bridge

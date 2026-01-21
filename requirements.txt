@@ -1,24 +1,38 @@
+# =============================================================================
+# PDF Processing & Data Generation
+# =============================================================================
 pypdf
-google-generativeai
+groq
 docling
 pyyaml
 python-dotenv
 tqdm
-
+datasets
+huggingface_hub
 langchain-text-splitters
 
+# =============================================================================
+# Data Analysis
+# =============================================================================
 pandas
 matplotlib
 seaborn
 
+# =============================================================================
+# Experiment Tracking
+# =============================================================================
 wandb
 
-# Optional: Serving
-# fastapi
-# uvicorn
-# unsloth  # Install separately: pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+# =============================================================================
+# Model Inference & Serving
+# =============================================================================
+transformers
+torch
+accelerate
+peft
+bitsandbytes
+pydantic
 
-# Chunking/Markdown splitting
-# vllm
-
-
+# API
+fastapi
+uvicorn

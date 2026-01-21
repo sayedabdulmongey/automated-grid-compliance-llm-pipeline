@@ -1,0 +1,14 @@
+# Serving Dependencies Only
+fastapi
+uvicorn[standard]
+pydantic
+
+# Model Loading
+transformers
+torch
+accelerate
+peft
+bitsandbytes
+
+# Utilities
+python-dotenv
